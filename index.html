@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>飛鷹地產｜在售物件地圖</title>
+<title>飛鷹不動產｜在售物件地圖</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <style>
@@ -110,7 +110,7 @@ select:focus{border-color:#1a3a5c}
 </div>
 
 <header>
-  <h1>🏠 飛鷹地產｜在售物件地圖</h1>
+  <h1>🏠 飛鷹不動產｜在售物件地圖</h1>
   <div class="hright">
     <span class="count-badge" id="cnt">載入中…</span>
     <button class="refresh-btn" onclick="loadData()">⟳ 重新整理</button>
@@ -201,7 +201,7 @@ const COL = {
   社區:     '社區',
   售價:     '售價',
   格局:     '格局',
-  坪數:     '坪數',
+  坪數:     '主建坪數',
   樓層:     '樓層',
   車位:     '車位',
   地址:     '地址',
@@ -251,7 +251,8 @@ function popupHtml(d){
     <table class="pu-tbl">
       <tr><td>社區</td><td>${d.社區||'—'}</td></tr>
       <tr><td>型態</td><td>${d.型態||'—'}</td></tr>
-      <tr><td>格局</td><td>${d.格局||'—'}　${d.坪數||''}坪</td></tr>
+      <tr><td>格局</td><td>${d.格局||'—'}</td></tr>
+      <tr><td>坪數</td><td>${d.坪數 ? d.坪數 + ' 坪' : '—'}</td></tr>
       <tr><td>樓層</td><td>${d.樓層||'—'}</td></tr>
       <tr><td>車位</td><td>${d.車位||'—'}</td></tr>
       <tr><td>區域</td><td>${d.區域||'—'}</td></tr>
@@ -309,7 +310,8 @@ function renderList(items){
       <div class="pprice">${d.售價||'洽談'}</div>
       <div class="pmeta">
         <span>${d.型態||''}</span><span class="dot">·</span>
-        <span>${d.格局||''}／${d.坪數||''}坪</span><span class="dot">·</span>
+        <span>${d.格局||''}</span><span class="dot">·</span>
+        <span style="color:#1a3a5c;font-weight:600">${d.坪數 ? d.坪數+'坪' : ''}</span><span class="dot">·</span>
         <span>${d.樓層||''}</span>
       </div>
       <div class="pmeta" style="margin-top:2px">
@@ -421,6 +423,15 @@ async function loadData(){
           const cell = r.c[idx];
           return (cell && cell.v != null) ? String(cell.v).trim() : '';
         };
+        // 數字欄位專用：避免 Google Sheets 回傳科學記號造成坪數顯示異常
+        const getNum = name => {
+          const idx = cols.indexOf(name);
+          if(idx < 0) return '';
+          const cell = r.c[idx];
+          if(!cell || cell.v == null || cell.v === '') return '';
+          const n = parseFloat(cell.v);
+          return isNaN(n) ? '' : (Number.isInteger(n) ? String(n) : n.toFixed(2));
+        };
         const lat = parseFloat(get(COL.緯度));
         const lng = parseFloat(get(COL.經度));
         return {
@@ -432,7 +443,7 @@ async function loadData(){
           社區:     get(COL.社區),
           售價:     get(COL.售價),
           格局:     get(COL.格局),
-          坪數:     get(COL.坪數),
+          坪數:     getNum(COL.坪數),
           樓層:     get(COL.樓層),
           車位:     get(COL.車位),
           地址:     get(COL.地址),
