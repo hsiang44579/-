@@ -80,11 +80,11 @@ header h1{font-size:17px;font-weight:700;letter-spacing:.03em}
 .tag-昌隆廣場{background:#ddeeff;color:#1a3a5c}
 .tag-運動公園{background:#dcfce7;color:#1a6640}
 .tag-大埔    {background:#cffafe;color:#0e6e8a}
-.tag-后莊    {background:#fef3c7;color:#92400e}
-.tag-建國    {background:#ffe4e6;color:#9f1239}
+.tag-建國后莊    {background:#fef3c7;color:#92400e}
+.tag-建國后莊    {background:#ffe4e6;color:#9f1239}
 .tag-東站    {background:#ffedd5;color:#9a3412}
 .tag-前站    {background:#e0e7ff;color:#3730a3}
-.tag-海口    {background:#cffafe;color:#155e75}
+.tag-中港海口    {background:#cffafe;color:#155e75}
 .tag-其他    {background:#f3f4f6;color:#374151}
 .pname{font-size:13px;font-weight:600;color:#1a1a1a;line-height:1.4;margin-bottom:2px}
 .pprice{font-size:15px;font-weight:800;color:#c0392b;margin-bottom:3px}
@@ -108,11 +108,11 @@ header h1{font-size:17px;font-weight:700;letter-spacing:.03em}
 .mk-blue  {background:#1a3a5c;color:#fff}  /* 昌隆廣場 */
 .mk-green {background:#1a7a48;color:#fff}  /* 運動公園 */
 .mk-teal  {background:#0e7490;color:#fff}  /* 大埔 */
-.mk-amber {background:#b45309;color:#fff}  /* 后莊 */
-.mk-rose  {background:#be123c;color:#fff}  /* 建國 */
+.mk-amber {background:#b45309;color:#fff}  /* 建國后莊 */
+.mk-rose  {background:#be123c;color:#fff}  /* 建國后莊 */
 .mk-orange{background:#c0550a;color:#fff}  /* 東站 */
 .mk-indigo{background:#4338ca;color:#fff}  /* 前站 */
-.mk-cyan  {background:#0891b2;color:#fff}  /* 海口 */
+.mk-cyan  {background:#0891b2;color:#fff}  /* 中港海口 */
 .mk-gray  {background:#6b7280;color:#fff}  /* 其他 */
 
 /* ── Popup ── */
@@ -186,13 +186,7 @@ header h1{font-size:17px;font-weight:700;letter-spacing:.03em}
             <div class="dd-menu"></div>
           </div>
         </div>
-        <div class="fg">
-          <label>車位型態</label>
-          <div class="dd-wrap" id="dd-park">
-            <div class="dd-btn" onclick="toggleDd('dd-park')"><span class="dd-label">全部車位</span><span class="dd-arrow">▼</span></div>
-            <div class="dd-menu"></div>
-          </div>
-        </div>
+
         <div class="fg">
           <label>價格區間（萬元）</label>
           <div class="range-row">
@@ -201,29 +195,12 @@ header h1{font-size:17px;font-weight:700;letter-spacing:.03em}
             <input type="number" id="f-pmax" placeholder="最高" min="0" step="50" oninput="doFilter()">
           </div>
         </div>
-        <div class="fg">
-          <label>坪數區間（坪）</label>
-          <div class="range-row">
-            <input type="number" id="f-smin" placeholder="最小" min="0" step="1" oninput="doFilter()">
-            <span>—</span>
-            <input type="number" id="f-smax" placeholder="最大" min="0" step="1" oninput="doFilter()">
-          </div>
-        </div>
+
         <button class="btn-reset filter-reset" onclick="doReset()">↺ 清除所有篩選</button>
       </div>
     </div>
 
-    <div class="legend">
-      <div class="legend-item"><div class="legend-dot" style="background:#1a3a5c"></div>昌隆廣場</div>
-      <div class="legend-item"><div class="legend-dot" style="background:#1a7a48"></div>運動公園</div>
-      <div class="legend-item"><div class="legend-dot" style="background:#0e7490"></div>大埔</div>
-      <div class="legend-item"><div class="legend-dot" style="background:#b45309"></div>后莊</div>
-      <div class="legend-item"><div class="legend-dot" style="background:#be123c"></div>建國</div>
-      <div class="legend-item"><div class="legend-dot" style="background:#c0550a"></div>東站</div>
-      <div class="legend-item"><div class="legend-dot" style="background:#4338ca"></div>前站</div>
-      <div class="legend-item"><div class="legend-dot" style="background:#0891b2"></div>海口</div>
-      <div class="legend-item"><div class="legend-dot" style="background:#6b7280"></div>其他</div>
-    </div>
+
 
     <div class="prop-list" id="list"></div>
   </div>
@@ -277,11 +254,11 @@ function areaMarkerClass(area){
     '昌隆廣場':'mk-blue',
     '運動公園':'mk-green',
     '大埔'    :'mk-teal',
-    '后莊'    :'mk-amber',
-    '建國'    :'mk-rose',
+    '建國后莊'    :'mk-amber',
+    '建國后莊'    :'mk-rose',
     '東站'    :'mk-orange',
     '前站'    :'mk-indigo',
-    '海口'    :'mk-cyan',
+    '中港海口'    :'mk-cyan',
     '其他'    :'mk-gray',
   };
   return map[area] || 'mk-gray';
@@ -413,7 +390,7 @@ function fillDd(ddId, values, placeholder, onChange, keepSelected){
 }
 
 // 區域指定排序
-const AREA_ORDER = ['昌隆廣場','運動公園','大埔','后莊','建國','東站','前站','海口','其他'];
+const AREA_ORDER = ['昌隆廣場','運動公園','大埔','建國后莊','東站','前站','中港海口','其他'];
 
 // 從完整格局字串萃取房型簡稱（例：「3房/2廳/2衛」→「3房」）
 function layoutShort(full){
@@ -431,7 +408,6 @@ function buildDropdowns(){
   // 格局下拉用簡稱
   const shortLayouts = DATA.map(d=>layoutShort(d.格局));
   fillDd('dd-lay',  shortLayouts, '全部格局', onLayChange, false);
-  fillDd('dd-park', DATA.map(d=>d.車位), '全部車位', onParkChange, false);
 }
 
 // 根據已選的區域＋型態，動態更新社區、格局、車位選單
@@ -452,8 +428,7 @@ function refreshDependents(){
   // 格局（簡稱）
   const shortLayouts = base.map(d=>layoutShort(d.格局));
   fillDd('dd-lay',  shortLayouts, '全部格局', onLayChange, true);
-  // 車位
-  fillDd('dd-park', base.map(d=>d.車位), '全部車位', onParkChange, true);
+
 }
 
 function onAreaChange(){ refreshDependents(); doFilter(); }
@@ -508,21 +483,19 @@ function doFilter(){
   const types = getSelected('dd-type');
   const coms  = getSelected('dd-com');
   const lays  = getSelected('dd-lay');
-  const parks = getSelected('dd-park');
+
   const pmin  = parseFloat(document.getElementById('f-pmin').value)||0;
   const pmax  = parseFloat(document.getElementById('f-pmax').value)||Infinity;
-  const smin  = parseFloat(document.getElementById('f-smin').value)||0;
-  const smax  = parseFloat(document.getElementById('f-smax').value)||Infinity;
+
 
   const vis = DATA.filter(d=>{
     if(areas.length && !areas.includes(d.區域)) return false;
     if(types.length && !types.includes(d.型態)) return false;
     if(coms.length  && !coms.includes(d.社區))  return false;
     if(lays.length  && !lays.includes(layoutShort(d.格局)))  return false;
-    if(parks.length && !parks.includes(d.車位)) return false;
+
     if(d.priceNum !== null && (d.priceNum < pmin || d.priceNum > pmax)) return false;
-    const ping = parseFloat(d.坪數)||0;
-    if(ping < smin || ping > smax) return false;
+
     return true;
   });
 
@@ -554,7 +527,7 @@ function doReset(){
   });
   // 重建所有連動選單
   buildDropdowns();
-  ['f-pmin','f-pmax','f-smin','f-smax'].forEach(id=>document.getElementById(id).value='');
+  ['f-pmin','f-pmax'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
   doFilter();
 }
 
