@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>飛鷹地產｜在售物件地圖</title>
+<title>飛鷹不動產｜在售物件地圖</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <style>
@@ -40,8 +40,25 @@ header h1{font-size:17px;font-weight:700;letter-spacing:.03em}
 .filter-body{padding:12px 14px 4px}
 .fg{margin-bottom:9px}
 .fg label{font-size:11px;color:#999;display:block;margin-bottom:4px;font-weight:600}
-select{width:100%;border:1px solid #ddd;border-radius:6px;padding:6px 8px;font-size:13px;background:#fafaf8;color:#333;outline:none;cursor:pointer}
-select:focus{border-color:#1a3a5c}
+/* 下拉複選選單 */
+.dd-wrap{position:relative;width:100%}
+.dd-btn{width:100%;display:flex;align-items:center;justify-content:space-between;border:1px solid #ddd;border-radius:6px;padding:6px 10px;font-size:13px;background:#fafaf8;color:#555;cursor:pointer;transition:border-color .15s;user-select:none;text-align:left}
+.dd-btn:hover{border-color:#1a3a5c}
+.dd-btn.active{border-color:#1a3a5c;border-bottom-left-radius:0;border-bottom-right-radius:0;background:#fff}
+.dd-btn .dd-label{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}
+.dd-btn .dd-arrow{font-size:10px;color:#aaa;margin-left:6px;transition:transform .2s;flex-shrink:0}
+.dd-btn.active .dd-arrow{transform:rotate(180deg)}
+.dd-badge{display:inline-block;background:#1a3a5c;color:#fff;border-radius:10px;font-size:10px;padding:1px 6px;margin-left:5px;flex-shrink:0}
+.dd-menu{display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #1a3a5c;border-top:none;border-bottom-left-radius:6px;border-bottom-right-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,.12);z-index:500;max-height:200px;overflow-y:auto}
+.dd-menu.open{display:block}
+.dd-option{display:flex;align-items:center;gap:8px;padding:7px 10px;font-size:13px;color:#333;cursor:pointer;transition:background .1s}
+.dd-option:hover{background:#f0f5fc}
+.dd-option.checked{color:#1a3a5c;font-weight:600}
+.dd-option input[type=checkbox]{accent-color:#1a3a5c;width:14px;height:14px;flex-shrink:0;cursor:pointer}
+.dd-divider{height:1px;background:#f0f0ec;margin:2px 0}
+.dd-clear{padding:6px 10px;font-size:11px;color:#aaa;cursor:pointer;text-align:right;border-top:1px solid #f0f0ec}
+.dd-clear:hover{color:#c0392b}
+.select-hint{font-size:10px;color:#bbb;margin-top:3px}
 .range-row{display:flex;gap:5px;align-items:center}
 .range-row input{flex:1;border:1px solid #ddd;border-radius:6px;padding:6px 8px;font-size:13px;background:#fafaf8;color:#333;outline:none;min-width:0}
 .range-row input:focus{border-color:#1a3a5c}
@@ -110,7 +127,7 @@ select:focus{border-color:#1a3a5c}
 </div>
 
 <header>
-  <h1>🏠 飛鷹地產｜在售物件地圖</h1>
+  <h1>🏠 飛鷹不動產｜在售物件地圖</h1>
   <div class="hright">
     <span class="count-badge" id="cnt">載入中…</span>
     <button class="refresh-btn" onclick="loadData()">⟳ 重新整理</button>
@@ -134,23 +151,38 @@ select:focus{border-color:#1a3a5c}
       <div class="filter-body">
         <div class="fg">
           <label>區域</label>
-          <select id="f-area" onchange="doFilter()"><option value="">全部區域</option></select>
+          <div class="dd-wrap" id="dd-area">
+            <div class="dd-btn" onclick="toggleDd('dd-area')"><span class="dd-label">全部區域</span><span class="dd-arrow">▼</span></div>
+            <div class="dd-menu"></div>
+          </div>
         </div>
         <div class="fg">
           <label>物件型態</label>
-          <select id="f-type" onchange="doFilter()"><option value="">全部型態</option></select>
+          <div class="dd-wrap" id="dd-type">
+            <div class="dd-btn" onclick="toggleDd('dd-type')"><span class="dd-label">全部型態</span><span class="dd-arrow">▼</span></div>
+            <div class="dd-menu"></div>
+          </div>
         </div>
         <div class="fg">
           <label>社區</label>
-          <select id="f-com" onchange="doFilter()"><option value="">全部社區</option></select>
+          <div class="dd-wrap" id="dd-com">
+            <div class="dd-btn" onclick="toggleDd('dd-com')"><span class="dd-label">全部社區</span><span class="dd-arrow">▼</span></div>
+            <div class="dd-menu"></div>
+          </div>
         </div>
         <div class="fg">
           <label>格局</label>
-          <select id="f-lay" onchange="doFilter()"><option value="">全部格局</option></select>
+          <div class="dd-wrap" id="dd-lay">
+            <div class="dd-btn" onclick="toggleDd('dd-lay')"><span class="dd-label">全部格局</span><span class="dd-arrow">▼</span></div>
+            <div class="dd-menu"></div>
+          </div>
         </div>
         <div class="fg">
           <label>車位型態</label>
-          <select id="f-park" onchange="doFilter()"><option value="">全部車位</option></select>
+          <div class="dd-wrap" id="dd-park">
+            <div class="dd-btn" onclick="toggleDd('dd-park')"><span class="dd-label">全部車位</span><span class="dd-arrow">▼</span></div>
+            <div class="dd-menu"></div>
+          </div>
         </div>
         <div class="fg">
           <label>價格區間（萬元）</label>
@@ -275,25 +307,105 @@ function buildMarkers(){
   });
 }
 
-// ── 動態更新下拉選單 ──
-function setOptions(selId, values){
-  const sel = document.getElementById(selId);
-  const cur = sel.value;
-  while(sel.options.length > 1) sel.remove(1);
-  [...new Set(values)].filter(v=>v&&v.trim()).sort().forEach(v=>{
-    const o = document.createElement('option');
-    o.value = v; o.textContent = v;
-    sel.appendChild(o);
+// ── 下拉複選選單 ──
+function getSelected(ddId){
+  const wrap = document.getElementById(ddId);
+  if(!wrap) return [];
+  return [...wrap.querySelectorAll('.dd-option input:checked')].map(cb=>cb.value);
+}
+
+function toggleDd(ddId){
+  const wrap = document.getElementById(ddId);
+  const btn  = wrap.querySelector('.dd-btn');
+  const menu = wrap.querySelector('.dd-menu');
+  const isOpen = menu.classList.contains('open');
+  // 關閉所有其他下拉
+  document.querySelectorAll('.dd-menu.open').forEach(m=>{ m.classList.remove('open'); m.closest('.dd-wrap').querySelector('.dd-btn').classList.remove('active'); });
+  if(!isOpen){ menu.classList.add('open'); btn.classList.add('active'); }
+}
+
+// 點擊外部關閉
+document.addEventListener('click', e=>{
+  if(!e.target.closest('.dd-wrap')){
+    document.querySelectorAll('.dd-menu.open').forEach(m=>{ m.classList.remove('open'); m.closest('.dd-wrap').querySelector('.dd-btn').classList.remove('active'); });
+  }
+});
+
+function updateBtnLabel(ddId, placeholder){
+  const wrap = document.getElementById(ddId);
+  const selected = getSelected(ddId);
+  const btn = wrap.querySelector('.dd-btn');
+  const label = wrap.querySelector('.dd-label');
+  // 移除舊 badge
+  const oldBadge = btn.querySelector('.dd-badge');
+  if(oldBadge) oldBadge.remove();
+  if(selected.length === 0){
+    label.textContent = placeholder;
+    label.style.color = '#888';
+  } else if(selected.length === 1){
+    label.textContent = selected[0];
+    label.style.color = '#1a3a5c';
+  } else {
+    label.textContent = selected[0];
+    label.style.color = '#1a3a5c';
+    const badge = document.createElement('span');
+    badge.className = 'dd-badge';
+    badge.textContent = '+' + (selected.length-1);
+    btn.insertBefore(badge, btn.querySelector('.dd-arrow'));
+  }
+}
+
+function fillDd(ddId, values, placeholder, onChange, keepSelected){
+  const wrap = document.getElementById(ddId);
+  const menu = wrap.querySelector('.dd-menu');
+  const prev = keepSelected ? getSelected(ddId) : [];
+  menu.innerHTML = '';
+  const uniq = [...new Set(values)].filter(v=>v&&v.trim()).sort();
+  uniq.forEach(v=>{
+    const row = document.createElement('div');
+    row.className = 'dd-option' + (prev.includes(v)?' checked':'');
+    const cb = document.createElement('input');
+    cb.type='checkbox'; cb.value=v;
+    if(prev.includes(v)) cb.checked=true;
+    cb.addEventListener('change', ()=>{
+      row.classList.toggle('checked', cb.checked);
+      updateBtnLabel(ddId, placeholder);
+      onChange();
+    });
+    const lbl = document.createElement('span');
+    lbl.textContent = v;
+    row.appendChild(cb); row.appendChild(lbl);
+    row.addEventListener('click', e=>{ if(e.target!==cb){ cb.checked=!cb.checked; cb.dispatchEvent(new Event('change')); }});
+    menu.appendChild(row);
   });
-  if([...sel.options].find(o=>o.value===cur)) sel.value = cur;
+  // 清除按鈕
+  if(uniq.length > 0){
+    const clr = document.createElement('div');
+    clr.className='dd-clear'; clr.textContent='清除選取';
+    clr.onclick = e=>{ e.stopPropagation(); menu.querySelectorAll('input').forEach(c=>{c.checked=false;}); menu.querySelectorAll('.dd-option').forEach(r=>r.classList.remove('checked')); updateBtnLabel(ddId,placeholder); onChange(); };
+    menu.appendChild(clr);
+  }
+  updateBtnLabel(ddId, placeholder);
 }
 
 function buildDropdowns(){
-  setOptions('f-area',  DATA.map(d=>d.區域));
-  setOptions('f-type',  DATA.map(d=>d.型態));
-  setOptions('f-com',   DATA.map(d=>d.社區));
-  setOptions('f-lay',   DATA.map(d=>d.格局));
-  setOptions('f-park',  DATA.map(d=>d.車位));
+  fillDd('dd-area', DATA.map(d=>d.區域), '全部區域', onAreaChange, false);
+  fillDd('dd-type', DATA.map(d=>d.型態), '全部型態', doFilter, false);
+  fillDd('dd-com',  DATA.map(d=>d.社區), '全部社區', doFilter, false);
+  fillDd('dd-lay',  DATA.map(d=>d.格局), '全部格局', doFilter, false);
+  fillDd('dd-park', DATA.map(d=>d.車位), '全部車位', doFilter, false);
+}
+
+// 區域連動社區
+function onAreaChange(){
+  const areas = getSelected('dd-area');
+  if(areas.length === 0){
+    fillDd('dd-com', DATA.map(d=>d.社區), '全部社區', doFilter, false);
+  } else {
+    const filtered = DATA.filter(d=>areas.includes(d.區域)).map(d=>d.社區);
+    fillDd('dd-com', filtered, '全部社區', doFilter, false);
+  }
+  doFilter();
 }
 
 // ── 渲染側欄列表 ──
@@ -339,22 +451,22 @@ function clickItem(id){
 
 // ── 篩選邏輯 ──
 function doFilter(){
-  const area  = document.getElementById('f-area').value;
-  const type  = document.getElementById('f-type').value;
-  const com   = document.getElementById('f-com').value;
-  const lay   = document.getElementById('f-lay').value;
-  const park  = document.getElementById('f-park').value;
+  const areas = getSelected('dd-area');
+  const types = getSelected('dd-type');
+  const coms  = getSelected('dd-com');
+  const lays  = getSelected('dd-lay');
+  const parks = getSelected('dd-park');
   const pmin  = parseFloat(document.getElementById('f-pmin').value)||0;
   const pmax  = parseFloat(document.getElementById('f-pmax').value)||Infinity;
   const smin  = parseFloat(document.getElementById('f-smin').value)||0;
   const smax  = parseFloat(document.getElementById('f-smax').value)||Infinity;
 
   const vis = DATA.filter(d=>{
-    if(area && d.區域 !== area) return false;
-    if(type && d.型態 !== type) return false;
-    if(com  && d.社區 !== com)  return false;
-    if(lay  && d.格局 !== lay)  return false;
-    if(park && d.車位 !== park) return false;
+    if(areas.length && !areas.includes(d.區域)) return false;
+    if(types.length && !types.includes(d.型態)) return false;
+    if(coms.length  && !coms.includes(d.社區))  return false;
+    if(lays.length  && !lays.includes(d.格局))  return false;
+    if(parks.length && !parks.includes(d.車位)) return false;
     if(d.priceNum !== null && (d.priceNum < pmin || d.priceNum > pmax)) return false;
     const ping = parseFloat(d.坪數)||0;
     if(ping < smin || ping > smax) return false;
@@ -380,7 +492,15 @@ function doFilter(){
 }
 
 function doReset(){
-  ['f-area','f-type','f-com','f-lay','f-park'].forEach(id=>document.getElementById(id).value='');
+  [['dd-area','全部區域'],['dd-type','全部型態'],['dd-lay','全部格局'],['dd-park','全部車位']].forEach(([id,ph])=>{
+    const wrap = document.getElementById(id);
+    if(!wrap) return;
+    wrap.querySelectorAll('input[type=checkbox]').forEach(c=>c.checked=false);
+    wrap.querySelectorAll('.dd-option').forEach(r=>r.classList.remove('checked'));
+    updateBtnLabel(id, ph);
+  });
+  // 社區還原全部
+  fillDd('dd-com', DATA.map(d=>d.社區), '全部社區', doFilter, false);
   ['f-pmin','f-pmax','f-smin','f-smax'].forEach(id=>document.getElementById(id).value='');
   doFilter();
 }
