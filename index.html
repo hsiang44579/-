@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>飛鷹地產｜在售物件地圖</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:'Microsoft JhengHei','PingFang TC',sans-serif}
+body{display:flex;flex-direction:column;height:100vh;background:#f5f5f3;color:#222}
+header{background:#1a3a5c;color:#fff;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,.25);z-index:1000}
+header h1{font-size:17px;font-weight:700;letter-spacing:.03em}
+.hright{display:flex;align-items:center;gap:10px}
+.count-badge{font-size:13px;background:rgba(255,255,255,.18);padding:4px 14px;border-radius:20px}
+.refresh-btn{font-size:12px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;padding:4px 12px;border-radius:20px;cursor:pointer;transition:background .15s}
+.refresh-btn:hover{background:rgba(255,255,255,.28)}
+.main{display:flex;flex:1;overflow:hidden}
+
+/* ── Sidebar ── */
+.sidebar{width:300px;flex-shrink:0;background:#fff;border-right:1px solid #ddd;display:flex;flex-direction:column;overflow:hidden}
+.filter-panel{padding:14px 14px 10px;border-bottom:1px solid #eee;flex-shrink:0}
+.filter-panel h2{font-size:12px;color:#888;font-weight:600;letter-spacing:.06em;text-transform:uppercase;margin-bottom:10px}
+.fg{margin-bottom:9px}
+.fg label{font-size:11px;color:#999;display:block;margin-bottom:4px;font-weight:600}
+select{width:100%;border:1px solid #ddd;border-radius:6px;padding:6px 8px;font-size:13px;background:#fafaf8;color:#333;outline:none;cursor:pointer}
+select:focus{border-color:#1a3a5c}
+.range-row{display:flex;gap:5px;align-items:center}
+.range-row input{flex:1;border:1px solid #ddd;border-radius:6px;padding:6px 8px;font-size:13px;background:#fafaf8;color:#333;outline:none;min-width:0}
+.range-row input:focus{border-color:#1a3a5c}
+.range-row span{color:#ccc;font-size:12px;flex-shrink:0}
+.btn-reset{width:100%;margin-top:4px;padding:7px;background:#f4f4f0;border:1px solid #ddd;border-radius:6px;font-size:12px;color:#666;cursor:pointer;transition:background .15s}
+.btn-reset:hover{background:#e8e8e2}
+
+/* ── Legend ── */
+.legend{display:flex;gap:10px;padding:8px 14px;border-bottom:1px solid #eee;flex-shrink:0;flex-wrap:wrap}
+.legend-item{display:flex;align-items:center;gap:4px;font-size:11px;color:#666}
+.legend-dot{width:10px;height:10px;border-radius:3px}
+
+/* ── Property List ── */
+.prop-list{flex:1;overflow-y:auto}
+.prop-item{padding:11px 14px;border-bottom:1px solid #f2f2ee;cursor:pointer;transition:background .1s;border-left:3px solid transparent}
+.prop-item:hover{background:#f8f8f5}
+.prop-item.active{background:#eef4fc;border-left-color:#1a3a5c}
+.tag{display:inline-block;font-size:10px;padding:2px 7px;border-radius:4px;font-weight:700;margin-bottom:4px}
+.tag-昌隆廣場{background:#ddeeff;color:#1a5a8c}
+.tag-運動公園{background:#ddf3e8;color:#1a6640}
+.tag-東站{background:#fde8d8;color:#8c3a1a}
+.tag-大埔{background:#f0e6ff;color:#5a1a8c}
+.pname{font-size:13px;font-weight:600;color:#1a1a1a;line-height:1.4;margin-bottom:2px}
+.pprice{font-size:15px;font-weight:800;color:#c0392b;margin-bottom:3px}
+.pmeta{font-size:11px;color:#aaa;display:flex;gap:6px;flex-wrap:wrap;line-height:1.6}
+.pmeta span{white-space:nowrap}
+.pmeta .dot{color:#ddd}
+.no-result{text-align:center;padding:32px 16px;color:#bbb;font-size:13px;line-height:2}
+
+/* ── Map ── */
+#map{flex:1}
+
+/* ── Loading overlay ── */
+.overlay{position:fixed;inset:0;background:rgba(26,58,92,.88);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;color:#fff;gap:16px}
+.overlay.hidden{display:none}
+.spinner{width:42px;height:42px;border:4px solid rgba(255,255,255,.2);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.overlay p{font-size:15px;opacity:.9;text-align:center;line-height:1.7}
+
+/* ── Marker ── */
+.mk{display:inline-flex;align-items:center;justify-content:center;padding:3px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,.35);border:2px solid rgba(255,255,255,.9);cursor:pointer;line-height:1.3}
+.mk-blue {background:#1a3a5c;color:#fff}
+.mk-green{background:#1a7a48;color:#fff}
+.mk-orange{background:#c0550a;color:#fff}
+.mk-purple{background:#5a1a8c;color:#fff}
+.mk-brown{background:#7b3f00;color:#fff}
+
+/* ── Popup ── */
+.leaflet-popup-content-wrapper{border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,.18)}
+.leaflet-popup-content{margin:14px 16px;min-width:220px;font-family:'Microsoft JhengHei','PingFang TC',sans-serif}
+.pu-title{font-size:14px;font-weight:700;color:#1a3a5c;line-height:1.4;margin-bottom:5px}
+.pu-price{font-size:20px;font-weight:800;color:#c0392b;margin-bottom:9px}
+.pu-tbl{width:100%;font-size:12px;border-collapse:collapse}
+.pu-tbl td{padding:4px 4px;border-bottom:1px solid #f0f0ec;line-height:1.5;vertical-align:top}
+.pu-tbl td:first-child{color:#aaa;width:54px;font-weight:600;white-space:nowrap}
+.pu-id{font-size:11px;color:#aaa;margin-top:8px}
+.pu-id a{color:#1a3a5c;text-decoration:none;font-weight:600;border-bottom:1px dashed #1a3a5c}
+.pu-id a:hover{color:#c0392b;border-color:#c0392b}
+</style>
+</head>
+<body>
+
+<div class="overlay" id="overlay">
+  <div class="spinner"></div>
+  <p id="overlay-msg">正在讀取 Google 試算表資料…</p>
+</div>
+
+<header>
+  <h1>🏠 飛鷹地產｜在售物件地圖</h1>
+  <div class="hright">
+    <span class="count-badge" id="cnt">載入中…</span>
+    <button class="refresh-btn" onclick="loadData()">⟳ 重新整理</button>
+  </div>
+</header>
+
+<div class="main">
+  <div class="sidebar">
+    <div class="filter-panel">
+      <h2>🔍 篩選條件</h2>
+
+      <div class="fg">
+        <label>區域</label>
+        <select id="f-area" onchange="doFilter()"><option value="">全部區域</option></select>
+      </div>
+      <div class="fg">
+        <label>物件型態</label>
+        <select id="f-type" onchange="doFilter()"><option value="">全部型態</option></select>
+      </div>
+      <div class="fg">
+        <label>社區</label>
+        <select id="f-com" onchange="doFilter()"><option value="">全部社區</option></select>
+      </div>
+      <div class="fg">
+        <label>格局</label>
+        <select id="f-lay" onchange="doFilter()"><option value="">全部格局</option></select>
+      </div>
+      <div class="fg">
+        <label>車位型態</label>
+        <select id="f-park" onchange="doFilter()"><option value="">全部車位</option></select>
+      </div>
+      <div class="fg">
+        <label>價格區間（萬元）</label>
+        <div class="range-row">
+          <input type="number" id="f-pmin" placeholder="最低" min="0" step="50" oninput="doFilter()">
+          <span>—</span>
+          <input type="number" id="f-pmax" placeholder="最高" min="0" step="50" oninput="doFilter()">
+        </div>
+      </div>
+      <div class="fg">
+        <label>坪數區間（坪）</label>
+        <div class="range-row">
+          <input type="number" id="f-smin" placeholder="最小" min="0" step="1" oninput="doFilter()">
+          <span>—</span>
+          <input type="number" id="f-smax" placeholder="最大" min="0" step="1" oninput="doFilter()">
+        </div>
+      </div>
+      <button class="btn-reset" onclick="doReset()">↺ 清除所有篩選</button>
+    </div>
+
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="background:#1a3a5c"></div>昌隆廣場</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#1a7a48"></div>運動公園</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#c0550a"></div>東站</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#5a1a8c"></div>大埔</div>
+    </div>
+
+    <div class="prop-list" id="list"></div>
+  </div>
+
+  <div id="map"></div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════
+//  Google 試算表設定
+// ══════════════════════════════════════════════
+const SHEET_ID   = '1ihiCTbbzvOxPyQNq9fF2TTFv2gPwaQOPfyKVwLFMrxs';
+const SHEET_NAME = '工作表1';
+
+// 欄位名稱對應（與試算表第一行標題一致）
+const COL = {
+  物件編號: '物件編號',
+  案名:     '案名',
+  區域:     '區域',
+  型態:     '型態',
+  社區:     '社區',
+  售價:     '售價',
+  格局:     '格局',
+  坪數:     '坪數',
+  樓層:     '樓層',
+  車位:     '車位',
+  地址:     '地址',
+  緯度:     '緯度',
+  經度:     '經度',
+  物件連結: '物件連結',
+};
+// ══════════════════════════════════════════════
+
+let DATA = [];
+
+// ── Map init ──
+const map = L.map('map').setView([24.706, 120.887], 14);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+  attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+  maxZoom:19
+}).addTo(map);
+
+// ── 工具函式 ──
+function parsePrice(s){
+  if(!s || ['洽談','面議',''].includes(String(s).trim())) return null;
+  return parseInt(String(s).replace(/,/g,'').replace('萬','').trim()) || null;
+}
+
+function areaMarkerClass(area){
+  const map = {'昌隆廣場':'mk-blue','運動公園':'mk-green','東站':'mk-orange','大埔':'mk-purple'};
+  return map[area] || 'mk-blue';
+}
+
+function makeIcon(d){
+  const label = (!d.售價 || ['洽談','面議'].includes(d.售價)) ? '洽談' : d.售價;
+  return L.divIcon({
+    html:`<div class="mk ${areaMarkerClass(d.區域)}">${label}</div>`,
+    className:'', iconAnchor:[30,14]
+  });
+}
+
+function popupHtml(d){
+  // 物件編號：若有連結則顯示為超連結
+  const idHtml = d.物件連結
+    ? `<a href="${d.物件連結}" target="_blank" rel="noopener">🔗 ${d.物件編號}</a>`
+    : d.物件編號;
+
+  return `
+    <div class="pu-title">${d.案名||''}</div>
+    <div class="pu-price">${d.售價||'洽談'}</div>
+    <table class="pu-tbl">
+      <tr><td>社區</td><td>${d.社區||'—'}</td></tr>
+      <tr><td>型態</td><td>${d.型態||'—'}</td></tr>
+      <tr><td>格局</td><td>${d.格局||'—'}　${d.坪數||''}坪</td></tr>
+      <tr><td>樓層</td><td>${d.樓層||'—'}</td></tr>
+      <tr><td>車位</td><td>${d.車位||'—'}</td></tr>
+      <tr><td>區域</td><td>${d.區域||'—'}</td></tr>
+      <tr><td>地址</td><td>${d.地址||'—'}</td></tr>
+    </table>
+    <div class="pu-id">物件編號：${idHtml}</div>`;
+}
+
+// ── 清除並重建 markers ──
+function buildMarkers(){
+  DATA.forEach(d=>{
+    if(d.marker){ map.removeLayer(d.marker); d.marker=null; }
+  });
+  DATA.forEach(d=>{
+    if(!d.lat || !d.lng) return;
+    d.marker = L.marker([d.lat, d.lng], {icon: makeIcon(d)})
+      .addTo(map)
+      .bindPopup(popupHtml(d), {maxWidth:300});
+    d.marker.on('click', ()=>highlightItem(d.id));
+  });
+}
+
+// ── 動態更新下拉選單 ──
+function setOptions(selId, values){
+  const sel = document.getElementById(selId);
+  const cur = sel.value;
+  while(sel.options.length > 1) sel.remove(1);
+  [...new Set(values)].filter(v=>v&&v.trim()).sort().forEach(v=>{
+    const o = document.createElement('option');
+    o.value = v; o.textContent = v;
+    sel.appendChild(o);
+  });
+  if([...sel.options].find(o=>o.value===cur)) sel.value = cur;
+}
+
+function buildDropdowns(){
+  setOptions('f-area',  DATA.map(d=>d.區域));
+  setOptions('f-type',  DATA.map(d=>d.型態));
+  setOptions('f-com',   DATA.map(d=>d.社區));
+  setOptions('f-lay',   DATA.map(d=>d.格局));
+  setOptions('f-park',  DATA.map(d=>d.車位));
+}
+
+// ── 渲染側欄列表 ──
+function renderList(items){
+  const el = document.getElementById('list');
+  if(!items.length){
+    el.innerHTML = '<div class="no-result">😕 沒有符合條件的物件<br><small>請調整篩選條件</small></div>';
+    return;
+  }
+  el.innerHTML = items.map(d=>`
+    <div class="prop-item" id="item${d.id}" onclick="clickItem(${d.id})">
+      <span class="tag tag-${d.區域}">${d.區域||''}</span>
+      <div class="pname">${d.案名||''}</div>
+      <div class="pprice">${d.售價||'洽談'}</div>
+      <div class="pmeta">
+        <span>${d.型態||''}</span><span class="dot">·</span>
+        <span>${d.格局||''}／${d.坪數||''}坪</span><span class="dot">·</span>
+        <span>${d.樓層||''}</span>
+      </div>
+      <div class="pmeta" style="margin-top:2px">
+        <span>🚗 ${d.車位||'無車位'}</span><span class="dot">·</span>
+        <span>${d.社區||''}</span>
+      </div>
+    </div>`).join('');
+}
+
+function highlightItem(id){
+  document.querySelectorAll('.prop-item').forEach(e=>e.classList.remove('active'));
+  const el = document.getElementById('item'+id);
+  if(el){ el.classList.add('active'); el.scrollIntoView({block:'nearest',behavior:'smooth'}); }
+}
+
+function clickItem(id){
+  const d = DATA.find(x=>x.id===id);
+  if(!d) return;
+  highlightItem(id);
+  if(d.lat && d.lng){
+    map.setView([d.lat, d.lng], 17, {animate:true});
+    setTimeout(()=>d.marker && d.marker.openPopup(), 350);
+  }
+}
+
+// ── 篩選邏輯 ──
+function doFilter(){
+  const area  = document.getElementById('f-area').value;
+  const type  = document.getElementById('f-type').value;
+  const com   = document.getElementById('f-com').value;
+  const lay   = document.getElementById('f-lay').value;
+  const park  = document.getElementById('f-park').value;
+  const pmin  = parseFloat(document.getElementById('f-pmin').value)||0;
+  const pmax  = parseFloat(document.getElementById('f-pmax').value)||Infinity;
+  const smin  = parseFloat(document.getElementById('f-smin').value)||0;
+  const smax  = parseFloat(document.getElementById('f-smax').value)||Infinity;
+
+  const vis = DATA.filter(d=>{
+    if(area && d.區域 !== area) return false;
+    if(type && d.型態 !== type) return false;
+    if(com  && d.社區 !== com)  return false;
+    if(lay  && d.格局 !== lay)  return false;
+    if(park && d.車位 !== park) return false;
+    if(d.priceNum !== null && (d.priceNum < pmin || d.priceNum > pmax)) return false;
+    const ping = parseFloat(d.坪數)||0;
+    if(ping < smin || ping > smax) return false;
+    return true;
+  });
+
+  // 顯示/隱藏 markers
+  DATA.forEach(d=>{
+    if(!d.marker) return;
+    vis.find(v=>v.id===d.id) ? map.addLayer(d.marker) : map.removeLayer(d.marker);
+  });
+
+  renderList(vis);
+  document.getElementById('cnt').textContent = `顯示 ${vis.length} / ${DATA.length} 筆`;
+
+  const hasCoord = vis.filter(d=>d.lat&&d.lng);
+  if(hasCoord.length){
+    map.fitBounds(
+      L.latLngBounds(hasCoord.map(d=>[d.lat,d.lng])),
+      {padding:[50,50], maxZoom:17}
+    );
+  }
+}
+
+function doReset(){
+  ['f-area','f-type','f-com','f-lay','f-park'].forEach(id=>document.getElementById(id).value='');
+  ['f-pmin','f-pmax','f-smin','f-smax'].forEach(id=>document.getElementById(id).value='');
+  doFilter();
+}
+
+// ── 讀取 Google Sheets ──
+async function loadData(){
+  const overlay = document.getElementById('overlay');
+  const msg     = document.getElementById('overlay-msg');
+  overlay.classList.remove('hidden');
+  msg.textContent = '正在讀取 Google 試算表資料…';
+
+  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(SHEET_NAME)}`;
+
+  try {
+    const res  = await fetch(url);
+    const text = await res.text();
+    // Google 回傳格式前後有包裝，需去除
+    const json = JSON.parse(text.replace(/^[^\(]+\(/, '').replace(/\);?\s*$/, ''));
+
+    const cols = json.table.cols.map(c => c.label);
+    const rows = json.table.rows || [];
+
+    // 清除舊 markers
+    DATA.forEach(d=>{ if(d.marker){ map.removeLayer(d.marker); d.marker=null; } });
+
+    DATA = rows
+      .filter(r => r && r.c && r.c.some(c => c && c.v != null && c.v !== ''))
+      .map((r, i) => {
+        const get = name => {
+          const idx = cols.indexOf(name);
+          if(idx < 0) return '';
+          const cell = r.c[idx];
+          return (cell && cell.v != null) ? String(cell.v).trim() : '';
+        };
+        const lat = parseFloat(get(COL.緯度));
+        const lng = parseFloat(get(COL.經度));
+        return {
+          id:       i,
+          物件編號: get(COL.物件編號),
+          案名:     get(COL.案名),
+          區域:     get(COL.區域),
+          型態:     get(COL.型態),
+          社區:     get(COL.社區),
+          售價:     get(COL.售價),
+          格局:     get(COL.格局),
+          坪數:     get(COL.坪數),
+          樓層:     get(COL.樓層),
+          車位:     get(COL.車位),
+          地址:     get(COL.地址),
+          物件連結: get(COL.物件連結),
+          lat:      isNaN(lat) ? null : lat,
+          lng:      isNaN(lng) ? null : lng,
+          priceNum: parsePrice(get(COL.售價)),
+          marker:   null,
+        };
+      });
+
+    buildDropdowns();
+    buildMarkers();
+    doFilter();
+    overlay.classList.add('hidden');
+
+  } catch(e) {
+    console.error(e);
+    msg.innerHTML = '❌ 讀取失敗<br><small>請確認試算表已設為「知道連結的人均可檢視」</small>';
+    setTimeout(()=>overlay.classList.add('hidden'), 4000);
+  }
+}
+
+loadData();
+</script>
+</body>
+</html>
