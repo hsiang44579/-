@@ -113,6 +113,18 @@ header h1{font-size:17px;font-weight:700;letter-spacing:.03em}
 .mk-cyan  {background:#0891b2;color:#fff}  /* 中港海口 */
 .mk-gray  {background:#6b7280;color:#fff}  /* 其他 */
 
+/* ── 同座標群組 Popup ── */
+.cluster-popup{font-family:'Microsoft JhengHei','PingFang TC',sans-serif}
+.cluster-popup .cp-title{font-size:12px;color:#888;font-weight:600;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid #eee}
+.cluster-popup .cp-item{display:flex;align-items:center;justify-content:space-between;padding:7px 8px;border-radius:6px;cursor:pointer;transition:background .12s;gap:10px;border-bottom:1px solid #f5f5f5}
+.cluster-popup .cp-item:last-child{border-bottom:none}
+.cluster-popup .cp-item:hover{background:#eef4fc}
+.cluster-popup .cp-name{font-size:13px;color:#1a1a1a;font-weight:500;flex:1;line-height:1.4}
+.cluster-popup .cp-price{font-size:13px;font-weight:700;color:#c0392b;white-space:nowrap;flex-shrink:0}
+.cluster-popup .cp-arrow{font-size:11px;color:#aaa;flex-shrink:0}
+.cp-back-btn{margin-top:10px;padding:7px 10px;text-align:center;font-size:12px;color:#1a3a5c;font-weight:600;cursor:pointer;border-top:1px solid #eee;border-radius:0 0 6px 6px;transition:background .12s}
+.cp-back-btn:hover{background:#eef4fc}
+
 /* ── Popup ── */
 .leaflet-popup-content-wrapper{border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,.18)}
 .leaflet-popup-content{margin:14px 16px;min-width:220px;font-family:'Microsoft JhengHei','PingFang TC',sans-serif}
@@ -292,17 +304,117 @@ function popupHtml(d){
 }
 
 // ── 清除並重建 markers ──
-function buildMarkers(){
-  DATA.forEach(d=>{
-    if(d.marker){ map.removeLayer(d.marker); d.marker=null; }
-  });
-  DATA.forEach(d=>{
+// 依座標將物件分群
+function groupByCoord(items){
+  const groups = {};
+  items.forEach(d=>{
     if(!d.lat || !d.lng) return;
-    d.marker = L.marker([d.lat, d.lng], {icon: makeIcon(d)})
-      .addTo(map)
-      .bindPopup(popupHtml(d), {maxWidth:300});
-    d.marker.on('click', ()=>highlightItem(d.id));
+    const key = d.lat.toFixed(5) + ',' + d.lng.toFixed(5);
+    if(!groups[key]) groups[key] = [];
+    groups[key].push(d);
   });
+  return groups;
+}
+
+// 產生群組 Popup HTML（多筆物件清單）
+function clusterPopupHtml(items){
+  const rows = items.map(d=>`
+    <div class="cp-item" onclick="openSinglePopup(${d.id})">
+      <span class="cp-name">${d.案名||''}</span>
+      <span class="cp-price">${d.售價||'洽談'}</span>
+      <span class="cp-arrow">›</span>
+    </div>`).join('');
+  return `<div class="cluster-popup">
+    <div class="cp-title">此位置共 ${items.length} 筆物件</div>
+    ${rows}
+  </div>`;
+}
+
+// 產生群組 marker 圖標（多筆時顯示筆數）
+function makeGroupIcon(items){
+  const area = items[0].區域;
+  const cls = areaMarkerClass(area);
+  if(items.length === 1){
+    const label = (!items[0].售價||['洽談','面議'].includes(items[0].售價))?'洽談':items[0].售價;
+    return L.divIcon({ html:`<div class="mk ${cls}">${label}</div>`, className:'', iconAnchor:[30,14] });
+  } else {
+    return L.divIcon({ html:`<div class="mk ${cls}">●${items.length}筆</div>`, className:'', iconAnchor:[30,14] });
+  }
+}
+
+// 全域存放群組 marker（key → marker）
+let GROUP_MARKERS = {};
+
+function buildMarkers(){
+  // 清除舊 marker
+  Object.values(GROUP_MARKERS).forEach(m=>map.removeLayer(m));
+  GROUP_MARKERS = {};
+  DATA.forEach(d=>d.marker=null);
+
+  const groups = groupByCoord(DATA);
+  Object.entries(groups).forEach(([key, items])=>{
+    const m = L.marker([items[0].lat, items[0].lng], {icon: makeGroupIcon(items)});
+    // 單筆：直接顯示物件資訊
+    if(items.length === 1){
+      m.bindPopup(popupHtml(items[0]), {maxWidth:300});
+      m.on('click', ()=>highlightItem(items[0].id));
+    } else {
+      // 多筆：顯示清單 Popup，點擊圖標直接打開
+      m.bindPopup(clusterPopupHtml(items), {maxWidth:320, minWidth:260});
+      m.on('click', ()=>{
+        items.forEach(d=>highlightItem(d.id));
+        // 確保 Popup 是最新清單內容再打開
+        m.setPopupContent(clusterPopupHtml(items));
+        m.openPopup();
+      });
+    }
+    GROUP_MARKERS[key] = m;
+    // 將 marker 參考存回每筆物件（方便 clickItem 使用）
+    items.forEach(d=>d.marker=m);
+  });
+}
+
+// 從群組 Popup 點擊單筆物件 → 顯示該物件的詳細資訊 Popup
+function openSinglePopup(id){
+  const d = DATA.find(x=>x.id===id);
+  if(!d || !d.marker) return;
+  highlightItem(d.id);
+
+  const key = d.lat.toFixed(5)+','+d.lng.toFixed(5);
+  const siblings = DATA.filter(x=>x.lat&&x.lng&&x.lat.toFixed(5)+','+x.lng.toFixed(5)===key);
+  const hasBack = siblings.length > 1;
+
+  // 組合完整 HTML（含返回按鈕），一次設定好再開啟
+  const backHtml = hasBack
+    ? '<div class="cp-back-btn" id="cp-back-'+id+'">← 返回清單</div>'
+    : '';
+  const fullHtml = '<div>' + popupHtml(d) + backHtml + '</div>';
+
+  // 先關閉目前 Popup，設定新內容後再開啟，避免閃退
+  d.marker.closePopup();
+  setTimeout(()=>{
+    d.marker.setPopupContent(fullHtml);
+    d.marker.openPopup();
+    // 綁定返回按鈕事件（用 id 找到 DOM 元素）
+    if(hasBack){
+      setTimeout(()=>{
+        const btn = document.getElementById('cp-back-'+id);
+        if(btn) btn.onclick = () => backToCluster(key);
+      }, 60);
+    }
+  }, 30);
+}
+function backToCluster(key){
+  const items = DATA.filter(x=>x.lat&&x.lng&&x.lat.toFixed(5)+','+x.lng.toFixed(5)===key);
+  if(!items.length) return;
+  const m = GROUP_MARKERS[key];
+  if(!m) return;
+  // 先關閉再重開，避免 setPopupContent 在開啟狀態下閃退
+  m.closePopup();
+  setTimeout(()=>{
+    m.setPopupContent(clusterPopupHtml(items));
+    m.openPopup();
+  }, 30);
 }
 
 // ── 下拉複選選單 ──
@@ -468,13 +580,51 @@ function clickItem(id){
   const d = DATA.find(x=>x.id===id);
   if(!d) return;
   highlightItem(id);
-  if(d.lat && d.lng){
+
+  if(!d.lat || !d.lng) return;
+
+  const key = d.lat.toFixed(5)+','+d.lng.toFixed(5);
+  const siblings = DATA.filter(x=>x.lat&&x.lng&&x.lat.toFixed(5)+','+x.lng.toFixed(5)===key);
+
+  // 無篩選條件時：先隱藏所有 marker，只顯示這筆的 marker
+  if(!hasAnyFilter()){
+    Object.values(GROUP_MARKERS).forEach(m=>map.removeLayer(m));
+    if(d.marker) map.addLayer(d.marker);
+  }
+
+  // 左側列表點擊：永遠直接顯示單筆詳細資訊（不顯示群組清單）
+  if(d.marker){
     map.setView([d.lat, d.lng], 17, {animate:true});
-    setTimeout(()=>d.marker && d.marker.openPopup(), 350);
+    // 關閉後重新開啟，避免同座標清單殘留
+    d.marker.closePopup();
+    setTimeout(()=>{
+      const backHtml = siblings.length > 1
+        ? '<div class="cp-back-btn" id="cb-'+id+'">← 返回清單</div>'
+        : '';
+      d.marker.setPopupContent('<div>'+popupHtml(d)+backHtml+'</div>');
+      d.marker.openPopup();
+      if(siblings.length > 1){
+        setTimeout(()=>{
+          const btn = document.getElementById('cb-'+id);
+          if(btn) btn.onclick = () => backToCluster(key);
+        }, 60);
+      }
+    }, 50);
   }
 }
 
 // ── 篩選邏輯 ──
+// 判斷目前是否有選取任何篩選條件
+function hasAnyFilter(){
+  const areas = getSelected('dd-area');
+  const types = getSelected('dd-type');
+  const coms  = getSelected('dd-com');
+  const lays  = getSelected('dd-lay');
+  const pmin  = parseFloat(document.getElementById('f-pmin').value)||0;
+  const pmax  = parseFloat(document.getElementById('f-pmax').value)||Infinity;
+  return areas.length || types.length || coms.length || lays.length || pmin > 0 || pmax < Infinity;
+}
+
 function doFilter(){
   const areas = getSelected('dd-area');
   const types = getSelected('dd-type');
@@ -484,29 +634,63 @@ function doFilter(){
   const pmin  = parseFloat(document.getElementById('f-pmin').value)||0;
   const pmax  = parseFloat(document.getElementById('f-pmax').value)||Infinity;
 
-
   const vis = DATA.filter(d=>{
     if(areas.length && !areas.includes(d.區域)) return false;
     if(types.length && !types.includes(d.型態)) return false;
     if(coms.length  && !coms.includes(d.社區))  return false;
     if(lays.length  && !lays.includes(layoutShort(d.格局)))  return false;
-
     if(d.priceNum !== null && (d.priceNum < pmin || d.priceNum > pmax)) return false;
-
     return true;
   });
 
-  // 顯示/隱藏 markers
-  DATA.forEach(d=>{
-    if(!d.marker) return;
-    vis.find(v=>v.id===d.id) ? map.addLayer(d.marker) : map.removeLayer(d.marker);
+  const filtering = hasAnyFilter();
+
+  // 計算每個群組有幾筆符合篩選
+  const visIds = new Set(vis.map(d=>d.id));
+  const groupVis = {}; // key → 符合的物件陣列
+
+  if(filtering){
+    // 先分群
+    vis.filter(d=>d.lat&&d.lng).forEach(d=>{
+      const key = d.lat.toFixed(5)+','+d.lng.toFixed(5);
+      if(!groupVis[key]) groupVis[key]=[];
+      groupVis[key].push(d);
+    });
+  }
+
+  // 更新每個群組 marker
+  Object.entries(GROUP_MARKERS).forEach(([key, m])=>{
+    if(!filtering){
+      map.removeLayer(m);
+    } else if(groupVis[key]){
+      // 更新圖標（可能只有部分物件符合）
+      m.setIcon(makeGroupIcon(groupVis[key]));
+      // 更新 Popup 內容
+      const gItems = groupVis[key];
+      if(gItems.length === 1){
+        m.setPopupContent(popupHtml(gItems[0]));
+        m.off('click');
+        m.on('click',()=>{ highlightItem(gItems[0].id); m.openPopup(); });
+      } else {
+        m.setPopupContent(clusterPopupHtml(gItems));
+        m.off('click');
+        m.on('click',()=>{
+          gItems.forEach(d=>highlightItem(d.id));
+          m.setPopupContent(clusterPopupHtml(gItems));
+          m.openPopup();
+        });
+      }
+      map.addLayer(m);
+    } else {
+      map.removeLayer(m);
+    }
   });
 
   renderList(vis);
   document.getElementById('cnt').textContent = `顯示 ${vis.length} / ${DATA.length} 筆`;
 
   const hasCoord = vis.filter(d=>d.lat&&d.lng);
-  if(hasCoord.length){
+  if(filtering && hasCoord.length){
     map.fitBounds(
       L.latLngBounds(hasCoord.map(d=>[d.lat,d.lng])),
       {padding:[50,50], maxZoom:17}
