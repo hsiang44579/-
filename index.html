@@ -77,7 +77,7 @@ header h1{font-size:17px;font-weight:700;letter-spacing:.03em}
 .prop-item:hover{background:#f8f8f5}
 .prop-item.active{background:#eef4fc;border-left-color:#1a3a5c}
 .tag{display:inline-block;font-size:10px;padding:2px 7px;border-radius:4px;font-weight:700;margin-bottom:4px}
-.tag-昌隆廣場{background:#ddeeff;color:#1a3a5c}
+.tag-尚順昌隆{background:#ddeeff;color:#1a3a5c}
 .tag-運動公園{background:#dcfce7;color:#1a6640}
 .tag-大埔    {background:#cffafe;color:#0e6e8a}
 .tag-建國后莊    {background:#ffe4e6;color:#9f1239}
@@ -104,7 +104,7 @@ header h1{font-size:17px;font-weight:700;letter-spacing:.03em}
 
 /* ── Marker ── */
 .mk{display:inline-flex;align-items:center;justify-content:center;padding:3px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,.35);border:2px solid rgba(255,255,255,.9);cursor:pointer;line-height:1.3}
-.mk-blue  {background:#1a3a5c;color:#fff}  /* 昌隆廣場 */
+.mk-blue  {background:#1a3a5c;color:#fff}  /* 尚順昌隆 */
 .mk-green {background:#1a7a48;color:#fff}  /* 運動公園 */
 .mk-teal  {background:#0e7490;color:#fff}  /* 大埔 */
 .mk-rose  {background:#be123c;color:#fff}  /* 建國后莊 */
@@ -223,24 +223,25 @@ header h1{font-size:17px;font-weight:700;letter-spacing:.03em}
 //  Google 試算表設定
 // ══════════════════════════════════════════════
 const SHEET_ID   = '1ihiCTbbzvOxPyQNq9fF2TTFv2gPwaQOPfyKVwLFMrxs';
-const SHEET_NAME = '工作表1';
+const SHEET_NAMES = ['頭份', '竹南']; // 可自由新增工作表名稱
 
 // 欄位名稱對應（與試算表第一行標題一致）
 const COL = {
-  物件編號: '物件編號',
+  物件編號: '飛鷹合約編號',
   案名:     '案名',
   區域:     '區域',
-  型態:     '型態',
+  型態:     '物件型態',
   社區:     '社區',
-  售價:     '售價',
+  售價:     '總價（萬）',
   格局:     '格局',
-  坪數:     '主建坪數',
+  坪數:     '坪數（主建＋附屬）',
   樓層:     '樓層',
-  車位:     '車位',
+  屋齡:     '屋齡',
+  車位:     '車位類型',
   地址:     '地址',
   緯度:     '緯度',
   經度:     '經度',
-  物件連結: '物件連結',
+  物件連結: '物件網址',
 };
 // ══════════════════════════════════════════════
 
@@ -254,6 +255,40 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
 }).addTo(map);
 
 // ── 工具函式 ──
+// 取得目前篩選條件下，指定座標的符合物件
+function getVisibleAtKey(key){
+  // 重跑一次篩選邏輯，取得目前可見物件
+  const areas = getSelected('dd-area');
+  const types = getSelected('dd-type');
+  const coms  = getSelected('dd-com');
+  const lays  = getSelected('dd-lay');
+  const pmin  = parseFloat(document.getElementById('f-pmin').value)||0;
+  const pmax  = parseFloat(document.getElementById('f-pmax').value)||Infinity;
+
+  return DATA.filter(d=>{
+    if(!d.lat || !d.lng) return false;
+    if(d.lat.toFixed(5)+','+d.lng.toFixed(5) !== key) return false;
+    if(areas.length && !areas.includes(d.區域)) return false;
+    if(types.length && !types.includes(d.型態)) return false;
+    if(coms.length  && !coms.includes(d.社區))  return false;
+    if(lays.length  && !lays.includes(layoutShort(d.格局))) return false;
+    if(d.priceNum !== null && (d.priceNum < pmin || d.priceNum > pmax)) return false;
+    return true;
+  });
+}
+
+// 屋齡格式化：11Y10M → 11年10個月，0Y6M → 6個月
+function formatAge(s){
+  if(!s || s.trim()==='') return '';
+  const m = String(s).match(/^(\d+)Y(\d+)M$/i);
+  if(!m) return s;
+  const y = parseInt(m[1]);
+  const mo = parseInt(m[2]);
+  if(y === 0) return mo + '個月';
+  if(mo === 0) return y + '年';
+  return y + '年' + mo + '個月';
+}
+
 function parsePrice(s){
   if(!s || ['洽談','面議',''].includes(String(s).trim())) return null;
   return parseInt(String(s).replace(/,/g,'').replace('萬','').trim()) || null;
@@ -261,7 +296,7 @@ function parsePrice(s){
 
 function areaMarkerClass(area){
   const map = {
-    '昌隆廣場':'mk-blue',
+    '尚順昌隆':'mk-blue',
     '運動公園':'mk-green',
     '大埔'    :'mk-teal',
     '建國后莊'    :'mk-rose',
@@ -294,7 +329,8 @@ function popupHtml(d){
       <tr><td>社區</td><td>${d.社區||'—'}</td></tr>
       <tr><td>型態</td><td>${d.型態||'—'}</td></tr>
       <tr><td>格局</td><td>${d.格局||'—'}</td></tr>
-      <tr><td>坪數</td><td>${d.坪數 ? d.坪數 + ' 坪' : '—'}</td></tr>
+      <tr><td>坪數</td><td>${d.坪數 ? d.坪數 : '—'}</td></tr>
+      <tr><td>屋齡</td><td>${d.屋齡||'—'}</td></tr>
       <tr><td>樓層</td><td>${d.樓層||'—'}</td></tr>
       <tr><td>車位</td><td>${d.車位||'—'}</td></tr>
       <tr><td>區域</td><td>${d.區域||'—'}</td></tr>
@@ -381,7 +417,8 @@ function openSinglePopup(id){
   highlightItem(d.id);
 
   const key = d.lat.toFixed(5)+','+d.lng.toFixed(5);
-  const siblings = DATA.filter(x=>x.lat&&x.lng&&x.lat.toFixed(5)+','+x.lng.toFixed(5)===key);
+  // 用篩選條件過濾，返回清單時只顯示符合條件的物件
+  const siblings = hasAnyFilter() ? getVisibleAtKey(key) : DATA.filter(x=>x.lat&&x.lng&&x.lat.toFixed(5)+','+x.lng.toFixed(5)===key);
   const hasBack = siblings.length > 1;
 
   // 組合完整 HTML（含返回按鈕），一次設定好再開啟
@@ -405,11 +442,11 @@ function openSinglePopup(id){
   }, 30);
 }
 function backToCluster(key){
-  const items = DATA.filter(x=>x.lat&&x.lng&&x.lat.toFixed(5)+','+x.lng.toFixed(5)===key);
+  // 依目前篩選條件決定要顯示哪些物件
+  const items = hasAnyFilter() ? getVisibleAtKey(key) : DATA.filter(x=>x.lat&&x.lng&&x.lat.toFixed(5)+','+x.lng.toFixed(5)===key);
   if(!items.length) return;
   const m = GROUP_MARKERS[key];
   if(!m) return;
-  // 先關閉再重開，避免 setPopupContent 在開啟狀態下閃退
   m.closePopup();
   setTimeout(()=>{
     m.setPopupContent(clusterPopupHtml(items));
@@ -499,13 +536,23 @@ function fillDd(ddId, values, placeholder, onChange, keepSelected){
 }
 
 // 區域指定排序
-const AREA_ORDER = ['昌隆廣場','運動公園','大埔','建國后莊','東站','前站','中港海口','其他'];
+const AREA_ORDER = ['尚順昌隆','運動公園','大埔','建國后莊','東站','前站','中港海口','其他'];
 
 // 從完整格局字串萃取房型簡稱（例：「3房/2廳/2衛」→「3房」）
 function layoutShort(full){
   if(!full) return '';
-  const m = full.match(/^([^\/\s]+)/);
-  return m ? m[1].trim() : full.trim();
+  // 支援「3房2廳2衛室」和「3房/2廳/2衛」兩種格式
+  const m = full.match(/^(\d+)房/);
+  if(m){
+    const n = parseInt(m[1]);
+    if(n === 0) return '';          // 0房 → 不顯示
+    if(n === 1) return '套房';      // 1房 → 套房
+    if(n >= 6)  return '6+房';      // 6房以上 → 6+房
+    return n + '房';                // 2~5房 → 保留
+  }
+  // 無房數（透天、店面等）→ 原樣
+  const s = full.split('/')[0].trim();
+  return s;
 }
 
 function buildDropdowns(){
@@ -560,10 +607,11 @@ function renderList(items){
       <div class="pmeta">
         <span>${d.型態||''}</span><span class="dot">·</span>
         <span>${d.格局||''}</span><span class="dot">·</span>
-        <span style="color:#1a3a5c;font-weight:600">${d.坪數 ? d.坪數+'坪' : ''}</span><span class="dot">·</span>
+        <span style="color:#1a3a5c;font-weight:600">${d.坪數||''}</span><span class="dot">·</span>
         <span>${d.樓層||''}</span>
       </div>
       <div class="pmeta" style="margin-top:2px">
+        <span>🏠 屋齡 ${d.屋齡||'—'}</span><span class="dot">·</span>
         <span>🚗 ${d.車位||'無車位'}</span><span class="dot">·</span>
         <span>${d.社區||''}</span>
       </div>
@@ -721,67 +769,75 @@ function toggleSidebar(){
 }
 
 // ── 讀取 Google Sheets ──
+// 解析單一工作表資料，回傳物件陣列
+function parseSheet(json, startId){
+  const cols = json.table.cols.map(c => c.label);
+  const rows = json.table.rows || [];
+  return rows
+    .filter(r => r && r.c && r.c.some(c => c && c.v != null && c.v !== ''))
+    .map((r, i) => {
+      const get = name => {
+        const idx = cols.indexOf(name);
+        if(idx < 0) return '';
+        const cell = r.c[idx];
+        return (cell && cell.v != null) ? String(cell.v).trim() : '';
+      };
+      const lat = parseFloat(get(COL.緯度));
+      const lng = parseFloat(get(COL.經度));
+      return {
+        id:       startId + i,
+        物件編號: get(COL.物件編號),
+        案名:     get(COL.案名),
+        區域:     get(COL.區域),
+        型態:     get(COL.型態),
+        社區:     get(COL.社區),
+        售價:     get(COL.售價),
+        格局:     get(COL.格局),
+        坪數:     get(COL.坪數),
+        樓層:     get(COL.樓層),
+        屋齡:     formatAge(get(COL.屋齡)),
+        車位:     get(COL.車位),
+        地址:     get(COL.地址),
+        物件連結: get(COL.物件連結),
+        lat:      isNaN(lat) ? null : lat,
+        lng:      isNaN(lng) ? null : lng,
+        priceNum: parsePrice(get(COL.售價)),
+        marker:   null,
+      };
+    });
+}
+
 async function loadData(){
   const overlay = document.getElementById('overlay');
   const msg     = document.getElementById('overlay-msg');
   overlay.classList.remove('hidden');
-  msg.textContent = '正在讀取 Google 試算表資料…';
-
-  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(SHEET_NAME)}`;
+  msg.textContent = '正在讀取資料…';
 
   try {
-    const res  = await fetch(url);
-    const text = await res.text();
-    // Google 回傳格式前後有包裝，需去除
-    const json = JSON.parse(text.replace(/^[^\(]+\(/, '').replace(/\);?\s*$/, ''));
-
-    const cols = json.table.cols.map(c => c.label);
-    const rows = json.table.rows || [];
-
     // 清除舊 markers
-    DATA.forEach(d=>{ if(d.marker){ map.removeLayer(d.marker); d.marker=null; } });
+    Object.values(GROUP_MARKERS).forEach(m=>map.removeLayer(m));
+    GROUP_MARKERS = {};
+    DATA.forEach(d=>d.marker=null);
 
-    DATA = rows
-      .filter(r => r && r.c && r.c.some(c => c && c.v != null && c.v !== ''))
-      .map((r, i) => {
-        const get = name => {
-          const idx = cols.indexOf(name);
-          if(idx < 0) return '';
-          const cell = r.c[idx];
-          return (cell && cell.v != null) ? String(cell.v).trim() : '';
-        };
-        // 數字欄位專用：避免 Google Sheets 回傳科學記號造成坪數顯示異常
-        const getNum = name => {
-          const idx = cols.indexOf(name);
-          if(idx < 0) return '';
-          const cell = r.c[idx];
-          if(!cell || cell.v == null || cell.v === '') return '';
-          const n = parseFloat(cell.v);
-          return isNaN(n) ? '' : (Number.isInteger(n) ? String(n) : n.toFixed(2));
-        };
-        const lat = parseFloat(get(COL.緯度));
-        const lng = parseFloat(get(COL.經度));
-        return {
-          id:       i,
-          物件編號: get(COL.物件編號),
-          案名:     get(COL.案名),
-          區域:     get(COL.區域),
-          型態:     get(COL.型態),
-          社區:     get(COL.社區),
-          售價:     get(COL.售價),
-          格局:     get(COL.格局),
-          坪數:     getNum(COL.坪數),
-          樓層:     get(COL.樓層),
-          車位:     get(COL.車位),
-          地址:     get(COL.地址),
-          物件連結: get(COL.物件連結),
-          lat:      isNaN(lat) ? null : lat,
-          lng:      isNaN(lng) ? null : lng,
-          priceNum: parsePrice(get(COL.售價)),
-          marker:   null,
-        };
-      });
+    // 同時抓取所有工作表
+    const fetchSheet = async (sheetName, idx) => {
+      msg.textContent = `讀取「${sheetName}」工作表中… (${idx+1}/${SHEET_NAMES.length})`;
+      const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sheetName)}`;
+      const res  = await fetch(url);
+      const text = await res.text();
+      const json = JSON.parse(text.replace(/^[^\(]+\(/, '').replace(/\);?\s*$/, ''));
+      return json;
+    };
 
+    // 依序抓取（避免 Google Sheets 速率限制）
+    let allData = [];
+    for(let i = 0; i < SHEET_NAMES.length; i++){
+      const json = await fetchSheet(SHEET_NAMES[i], i);
+      const rows = parseSheet(json, allData.length);
+      allData = allData.concat(rows);
+    }
+
+    DATA = allData;
     buildDropdowns();
     buildMarkers();
     doFilter();
