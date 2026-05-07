@@ -507,7 +507,14 @@ function fillDd(ddId, values, placeholder, onChange, keepSelected){
   const menu = wrap.querySelector('.dd-menu');
   const prev = keepSelected ? getSelected(ddId) : [];
   menu.innerHTML = '';
-  const uniq = [...new Set(values)].filter(v=>v&&v.trim()).sort();
+  const uniq = [...new Set(values)].filter(v=>v&&v.trim()).sort((a,b)=>{
+    const order = window._ddOrder || [];
+    const ia = order.indexOf(a), ib = order.indexOf(b);
+    if(ia>-1 && ib>-1) return ia-ib;
+    if(ia>-1) return -1;
+    if(ib>-1) return 1;
+    return a.localeCompare(b,'zh-TW');
+  });
   uniq.forEach(v=>{
     const row = document.createElement('div');
     row.className = 'dd-option' + (prev.includes(v)?' checked':'');
@@ -536,7 +543,7 @@ function fillDd(ddId, values, placeholder, onChange, keepSelected){
 }
 
 // 區域指定排序
-const AREA_ORDER = ['尚順昌隆','運動公園','大埔','建國后莊','東站','前站','中港海口','其他'];
+const AREA_ORDER = ['尚順昌隆','運動公園','大埔','東站','建國后莊','前站','中港海口','其他'];
 
 // 從完整格局字串萃取房型簡稱（例：「3房/2廳/2衛」→「3房」）
 function layoutShort(full){
@@ -556,8 +563,9 @@ function layoutShort(full){
 }
 
 function buildDropdowns(){
+  // 區域固定使用 AREA_ORDER，不隨資料變動
   window._ddOrder = AREA_ORDER;
-  fillDd('dd-area', DATA.map(d=>d.區域), '全部區域', onAreaChange, false);
+  fillDd('dd-area', AREA_ORDER, '全部區域', onAreaChange, false);
   window._ddOrder = null;
   fillDd('dd-type', DATA.map(d=>d.型態), '全部型態', onTypeChange, false);
   fillDd('dd-com',  DATA.map(d=>d.社區), '全部社區', doFilter, false);
@@ -760,6 +768,21 @@ function doReset(){
   doFilter();
 }
 
+// ── 預設勾選下拉選單 ──
+function preSelectDd(ddId, values, placeholder){
+  const wrap = document.getElementById(ddId);
+  if(!wrap) return;
+  wrap.querySelectorAll('.dd-option').forEach(row=>{
+    const cb = row.querySelector('input[type=checkbox]');
+    if(!cb) return;
+    if(values.includes(cb.value)){
+      cb.checked = true;
+      row.classList.add('checked');
+    }
+  });
+  updateBtnLabel(ddId, placeholder);
+}
+
 // ── 側欄收合 ──
 function toggleSidebar(){
   const sb = document.getElementById('sidebar');
@@ -840,7 +863,16 @@ async function loadData(){
     DATA = allData;
     buildDropdowns();
     buildMarkers();
-    doFilter();
+    // 預設勾選區域
+    preSelectDd('dd-area', ['尚順昌隆', '運動公園', '大埔'], '全部區域');
+    // 先觸發區域連動，讓社區選單更新
+    onAreaChange();
+    // 預設勾選物件型態（大樓及華廈，名稱需與試算表一致）
+    // 等型態選單從資料動態建立後再勾選
+    setTimeout(()=>{
+      preSelectDd('dd-type', ['住宅大樓(11層含以上有電梯)', '華廈(10層含以下有電梯)'], '全部型態');
+      onTypeChange();
+    }, 50);
     overlay.classList.add('hidden');
 
   } catch(e) {
