@@ -642,11 +642,8 @@ function clickItem(id){
   const key = d.lat.toFixed(5)+','+d.lng.toFixed(5);
   const siblings = DATA.filter(x=>x.lat&&x.lng&&x.lat.toFixed(5)+','+x.lng.toFixed(5)===key);
 
-  // 無篩選條件時：先隱藏所有 marker，只顯示這筆的 marker
-  if(!hasAnyFilter()){
-    Object.values(GROUP_MARKERS).forEach(m=>map.removeLayer(m));
-    if(d.marker) map.addLayer(d.marker);
-  }
+  // 確保這筆物件的 marker 顯示在地圖上
+  if(d.marker) map.addLayer(d.marker);
 
   // 左側列表點擊：永遠直接顯示單筆詳細資訊（不顯示群組清單）
   if(d.marker){
@@ -699,26 +696,21 @@ function doFilter(){
     return true;
   });
 
+  // 無任何篩選條件時視為「全部顯示」
   const filtering = hasAnyFilter();
+  const showAll = !filtering;
 
-  // 計算每個群組有幾筆符合篩選
-  const visIds = new Set(vis.map(d=>d.id));
-  const groupVis = {}; // key → 符合的物件陣列
-
-  if(filtering){
-    // 先分群
-    vis.filter(d=>d.lat&&d.lng).forEach(d=>{
-      const key = d.lat.toFixed(5)+','+d.lng.toFixed(5);
-      if(!groupVis[key]) groupVis[key]=[];
-      groupVis[key].push(d);
-    });
-  }
+  // 計算每個群組有幾筆符合篩選（無篩選時 vis 已是全部物件）
+  const groupVis = {};
+  vis.filter(d=>d.lat&&d.lng).forEach(d=>{
+    const key = d.lat.toFixed(5)+','+d.lng.toFixed(5);
+    if(!groupVis[key]) groupVis[key]=[];
+    groupVis[key].push(d);
+  });
 
   // 更新每個群組 marker
   Object.entries(GROUP_MARKERS).forEach(([key, m])=>{
-    if(!filtering){
-      map.removeLayer(m);
-    } else if(groupVis[key]){
+    if(groupVis[key]){
       // 更新圖標（可能只有部分物件符合）
       m.setIcon(makeGroupIcon(groupVis[key]));
       // 更新 Popup 內容
