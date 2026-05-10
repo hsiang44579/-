@@ -933,6 +933,9 @@ async function loadData(){
     DATA = allData;
     buildDropdowns();
     buildMarkers();
+    // 地圖容器尺寸確認後再畫區域多邊形
+    map.invalidateSize();
+    buildZones();
     // 預設勾選區域
     preSelectDd('dd-area', ['尚順昌隆', '運動公園', '大埔'], '全部區域');
     // 先觸發區域連動，讓社區選單更新
@@ -953,7 +956,6 @@ async function loadData(){
   }
 }
 
-buildZones();
 loadData();
 </script>
 </body>
