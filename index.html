@@ -254,6 +254,64 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
   maxZoom:19
 }).addTo(map);
 
+// ── 區域範圍多邊形 ──
+const AREA_ZONES = {
+  '尚順昌隆': {
+    color: '#1a3a5c',
+    coords: [
+      [24.688828, 120.909791],[24.692958, 120.907101],[24.693856, 120.906217],
+      [24.691314, 120.902723],[24.692546, 120.900839],[24.693451, 120.898669],
+      [24.691118, 120.897940],[24.688900, 120.897858],[24.688901, 120.895127],
+      [24.685256, 120.895709],[24.685487, 120.903170],[24.685863, 120.904367],
+      [24.687182, 120.906979]
+    ]
+  },
+  '大埔': {
+    color: '#0e7490',
+    coords: [
+      [24.704114, 120.918226],[24.715152, 120.918015],[24.714313, 120.905326],
+      [24.706987, 120.893254],[24.703879, 120.893363],[24.703930, 120.901740],
+      [24.702729, 120.904546],[24.701918, 120.885042],[24.705797, 120.908477]
+    ]
+  },
+};
+
+// 建立區域多邊形圖層
+const ZONE_LAYERS = {};
+function buildZones(){
+  Object.entries(AREA_ZONES).forEach(([name, zone])=>{
+    // 多邊形
+    const poly = L.polygon(zone.coords, {
+      color: zone.color,
+      weight: 2,
+      opacity: 0.7,
+      fillColor: zone.color,
+      fillOpacity: 0.08,
+      dashArray: '6,4',
+    }).addTo(map);
+
+    // 區域名稱標籤（放在多邊形中心）
+    const bounds = poly.getBounds();
+    const center = bounds.getCenter();
+    const label = L.divIcon({
+      html: `<div style="
+        background:${zone.color};color:#fff;
+        padding:3px 10px;border-radius:12px;
+        font-size:12px;font-weight:700;
+        white-space:nowrap;opacity:0.85;
+        font-family:'Microsoft JhengHei','PingFang TC',sans-serif;
+        box-shadow:0 1px 4px rgba(0,0,0,0.25);
+        pointer-events:none;
+      ">${name}</div>`,
+      className: '',
+      iconAnchor: [40, 14],
+    });
+    L.marker(center, {icon: label, interactive: false, zIndexOffset: -100}).addTo(map);
+
+    ZONE_LAYERS[name] = poly;
+  });
+}
+
 // ── 工具函式 ──
 // 取得目前篩選條件下，指定座標的符合物件
 function getVisibleAtKey(key){
@@ -835,21 +893,41 @@ async function loadData(){
     DATA.forEach(d=>d.marker=null);
 
     // 同時抓取所有工作表
-    const fetchSheet = async (sheetName, idx) => {
-      msg.textContent = `讀取「${sheetName}」工作表中… (${idx+1}/${SHEET_NAMES.length})`;
+    const fetchSheet = async (sheetName, sheetIdx) => {
+      msg.textContent = `讀取「${sheetName}」工作表中… (${sheetIdx+1}/${SHEET_NAMES.length})`;
       const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sheetName)}`;
       const res  = await fetch(url);
       const text = await res.text();
-      const json = JSON.parse(text.replace(/^[^\(]+\(/, '').replace(/\);?\s*$/, ''));
+      // 去除 Google 包裝字串
+                  const start = text.indexOf('('); const cleaned = start > -1 ? text.slice(start+1, text.lastIndexOf(')')) : text;
+      const json = JSON.parse(cleaned);
+      // 檢查是否有錯誤（例如工作表不存在）
+      if(json.status === 'error'){
+        console.warn(`工作表「${sheetName}」讀取失敗：`, json.errors);
+        return null;
+      }
       return json;
     };
 
-    // 依序抓取（避免 Google Sheets 速率限制）
+    // 依序抓取，單一工作表失敗不影響其他
     let allData = [];
     for(let i = 0; i < SHEET_NAMES.length; i++){
-      const json = await fetchSheet(SHEET_NAMES[i], i);
-      const rows = parseSheet(json, allData.length);
-      allData = allData.concat(rows);
+      try{
+        const json = await fetchSheet(SHEET_NAMES[i], i);
+        if(json && json.table){
+          const rows = parseSheet(json, allData.length);
+          allData = allData.concat(rows);
+          console.log(`「${SHEET_NAMES[i]}」讀取完成，共 ${rows.length} 筆`);
+        } else {
+          console.warn(`「${SHEET_NAMES[i]}」無資料或工作表不存在，略過`);
+        }
+      } catch(sheetErr){
+        console.warn(`「${SHEET_NAMES[i]}」讀取異常，略過：`, sheetErr.message);
+      }
+    }
+
+    if(allData.length === 0){
+      throw new Error('所有工作表皆無法讀取，請確認試算表設定');
     }
 
     DATA = allData;
@@ -869,11 +947,13 @@ async function loadData(){
 
   } catch(e) {
     console.error(e);
-    msg.innerHTML = '❌ 讀取失敗<br><small>請確認試算表已設為「知道連結的人均可檢視」</small>';
-    setTimeout(()=>overlay.classList.add('hidden'), 4000);
+    console.error('loadData error:', e);
+    msg.innerHTML = '❌ 讀取失敗：' + e.message + '<br><small>請確認試算表已設為「知道連結的人均可檢視」</small>';
+    setTimeout(()=>overlay.classList.add('hidden'), 6000);
   }
 }
 
+buildZones();
 loadData();
 </script>
 </body>
