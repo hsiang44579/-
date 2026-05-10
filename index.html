@@ -82,7 +82,8 @@ header h1{font-size:17px;font-weight:700;letter-spacing:.03em}
 .tag-大埔    {background:#cffafe;color:#0e6e8a}
 .tag-建國后莊    {background:#ffe4e6;color:#9f1239}
 .tag-東站    {background:#ffedd5;color:#9a3412}
-.tag-前站    {background:#e0e7ff;color:#3730a3}
+.tag-公園東站  {background:#ffedd5;color:#9a3412}
+.tag-竹南市區  {background:#e0e7ff;color:#3730a3}
 .tag-中港海口    {background:#cffafe;color:#155e75}
 .tag-其他    {background:#f3f4f6;color:#374151}
 .pname{font-size:13px;font-weight:600;color:#1a1a1a;line-height:1.4;margin-bottom:2px}
@@ -286,6 +287,25 @@ const AREA_ZONES = {
       [24.691366, 120.902745]
     ]
   },
+  '公園東站': {
+    color: '#c0550a',
+    coords: [
+      [24.685278, 120.895747],[24.688843, 120.895188],[24.688897, 120.897851],
+      [24.691154, 120.897924],[24.693536, 120.898711],[24.693995, 120.896994],
+      [24.694296, 120.894463],[24.701275, 120.885098],[24.694101, 120.885502],
+      [24.696163, 120.881274],[24.694426, 120.881061],[24.678017, 120.880195],
+      [24.676248, 120.885268],[24.679347, 120.887346],[24.685251, 120.889511]
+    ]
+  },
+  '竹南市區': {
+    color: '#4338ca',
+    coords: [
+      [24.677366, 120.874019],[24.675806, 120.879905],[24.693545, 120.881121],
+      [24.692277, 120.874886],[24.691360, 120.872713],[24.690063, 120.871167],
+      [24.687725, 120.869880],[24.684359, 120.869012],[24.679634, 120.869387],
+      [24.678654, 120.869921]
+    ]
+  },
 };
 
 // 建立區域多邊形圖層
@@ -371,7 +391,7 @@ function areaMarkerClass(area){
     '大埔'    :'mk-teal',
     '建國后莊'    :'mk-rose',
     '東站'    :'mk-orange',
-    '前站'    :'mk-indigo',
+    '竹南市區'  :'mk-indigo',
     '中港海口'    :'mk-cyan',
     '其他'    :'mk-gray',
   };
@@ -613,7 +633,7 @@ function fillDd(ddId, values, placeholder, onChange, keepSelected){
 }
 
 // 區域指定排序
-const AREA_ORDER = ['尚順昌隆','運動公園','大埔','東站','建國后莊','前站','中港海口','其他'];
+const AREA_ORDER = ['尚順昌隆','運動公園','大埔','東站','建國后莊','竹南市區','中港海口','其他'];
 
 // 從完整格局字串萃取房型簡稱（例：「3房/2廳/2衛」→「3房」）
 function layoutShort(full){
