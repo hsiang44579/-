@@ -651,7 +651,8 @@ function fillDd(ddId, values, placeholder, onChange, keepSelected){
 }
 
 // 區域指定排序
-const AREA_ORDER = ['尚順昌隆','公園東站','大埔','東站','建國后莊','竹南市區','中港海口','其他'];
+const AREA_ORDER = ['尚順昌隆','公園東站','大埔','建國后莊','竹南市區','頭份市區','中港海口','其他'];
+const TYPE_ORDER = ['電梯大樓','透天','預售屋','套房','農舍','店面','廠房','倉庫'];
 
 // 從完整格局字串萃取房型簡稱（例：「3房/2廳/2衛」→「3房」）
 function layoutShort(full){
@@ -675,7 +676,9 @@ function buildDropdowns(){
   window._ddOrder = AREA_ORDER;
   fillDd('dd-area', AREA_ORDER, '全部區域', onAreaChange, false);
   window._ddOrder = null;
-  fillDd('dd-type', DATA.map(d=>d.型態), '全部型態', onTypeChange, false);
+  window._ddOrder = TYPE_ORDER;
+  fillDd('dd-type', TYPE_ORDER, '全部型態', onTypeChange, false);
+  window._ddOrder = null;
   fillDd('dd-com',  DATA.map(d=>d.社區), '全部社區', doFilter, false);
   // 格局下拉用簡稱
   const shortLayouts = DATA.map(d=>layoutShort(d.格局));
@@ -993,7 +996,7 @@ async function loadData(){
     // 預設勾選物件型態（大樓及華廈，名稱需與試算表一致）
     // 等型態選單從資料動態建立後再勾選
     setTimeout(()=>{
-      preSelectDd('dd-type', ['住宅大樓(11層含以上有電梯)', '華廈(10層含以下有電梯)'], '全部型態');
+      preSelectDd('dd-type', ['電梯大樓'], '全部型態');
       onTypeChange();
     }, 50);
     overlay.classList.add('hidden');
